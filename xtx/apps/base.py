@@ -256,6 +256,8 @@ class TimeSeriesRecipe(ABC):
                                 batch_size=args.train_batch_size,
                                 sampler=args.sampler(args.dataset),
                                 pin_memory=True)
+        args.model = args.model.train()
+        args.model = args.model.to(args.device)
 
         for epoch in range(args.num_train_epochs):
 
@@ -279,18 +281,21 @@ class TimeSeriesRecipe(ABC):
                 # hidden = [h.to(dtype=batch['features'].dtype, device=args.device) for h in hidden]
                 #
                 # out, hidden = args.model(batch['features'], hidden, args.dataset.offset)
+                
+                batch = {k: v.to(args.device) for k, v in batch.items()}
 
+                print([(n, p.device) for n, p in list(args.model.module.named_parameters())])
+                #print(batch)
                 out = args.model(batch['features'], args.dataset.valid_size)
-
                 # check output seq_len
                 assert out.size(1) == args.dataset.valid_size
                 # print('OUT', out.size())
 
                 ce = nn.CrossEntropyLoss()(out.view(-1, args.dataset.num_labels), batch['cat_labels'].view(-1))
 
-                predicted_indices = np.argmax(out.detach().numpy(), axis=-1)
+                predicted_indices = np.argmax(out.cpu().detach().numpy(), axis=-1)
                 predicted_labels = np.vectorize(args.dataset.id_to_value.__getitem__)(predicted_indices)
-                predicted_labels = torch.from_numpy(predicted_labels)
+                predicted_labels = torch.from_numpy(predicted_labels).to(args.device)
                 # print(predicted_indices)
                 # print(predicted_labels)
                 # print(predicted_labels.size(), batch['labels'].size())
@@ -310,8 +315,23 @@ class TimeSeriesRecipe(ABC):
                 metrics['mse'].append(mse.item())
                 metrics['n_wrong'].append(n_wrong)
 
-                ce.backward()
+                # backward
+                if args.fp16_opt_level != 'None':
+                    with amp.scale_loss(ce, args.optimizer) as scaled_loss:
+                        scaled_loss.backward()
+                else:
+                    ce.backward()
+
+                # clip
+                if args.max_gradients:
+                    nn.utils.clip_grad_norm_(args.model.parameters(), args.max_gradients)
+
+                # adjust the weights
                 args.optimizer.step()
+
+                if self.lr_scheduler is not None:
+                    self.lr_scheduler.step()
+
 
                 if batch_idx % args.print_every == 0:
                     iter_time = time.time() - start_time

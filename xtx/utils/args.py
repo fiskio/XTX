@@ -67,10 +67,10 @@ def get_default_parser():
                         type=int,
                         default=42,
                         help='random seed for initialization')
-    parser.add_argument('--gradient_accumulation_steps',
+    parser.add_argument('--max_gradients',
                         type=int,
-                        default=1,
-                        help='Number of updates steps to accumulate before performing a backward/update pass.')
+                        default=1.0,
+                        help='Maximum magnitude for gradient clipping')
     parser.add_argument('--fp16_opt_level',
                         type=str,
                         default='None',

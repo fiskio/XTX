@@ -22,3 +22,12 @@ To run a jupyter server within the container run:
 ./run_docker.sh jupyter notebook --no-browser --allow-root --ip=0.0.0.0
 ```
 and click on the link generated (e.g. `http://127.0.0.1:8888/?token=a676cbe6c4f4422f92bcbd514a51fa9356cfe65bd2e7fd15`)
+
+To train an LSTM model run:
+```bash
+./run_docker.sh python xtx/apps/train_lstm.py --mat_file data/data.mat
+```
+or on multiple GPUs:
+```bash
+python -m torch.distributed.launch --nproc_per_node=2  xtx/apps/train_lstm.py --mat_file data/data.mat --fp16_opt_level O2
+```

@@ -18,12 +18,6 @@ class LstmTimeSeriesModel(nn.Module):
                                dropout=dropout,
                                batch_first=True)
 
-        # self.decoder = nn.LSTM(input_size=input_size,
-        #                        hidden_size=hidden_size,
-        #                        num_layers=num_layers,
-        #                        dropout=dropout,
-        #                        batch_first=True)
-
         self.to_num_classes = nn.Linear(hidden_size, self.out_size)
 
         self.init_weights()
@@ -38,7 +32,7 @@ class LstmTimeSeriesModel(nn.Module):
 
         # LSTM
         self.init_lstm(self.encoder)
-        # self.init_lstm(self.decoder)
+        #self.init_lstm(self.decoder)
 
     @staticmethod
     def init_lstm(lstm_mod):
@@ -54,19 +48,19 @@ class LstmTimeSeriesModel(nn.Module):
 
     def forward(self, features, valid_seq_len):
 
-        hidden = self.init_hidden(features.size(0))
+        hidden = self.init_hidden(features.size(0), features.device)
 
         encoder_features = features[:, :-valid_seq_len]
         decoder_features = features[:, -valid_seq_len:]
 
         output, hidden = self.encoder(encoder_features, hidden)
         output, hidden = self.encoder(decoder_features, hidden)
-        # output, hidden = self.decoder(decoder_features, hidden)
+        #output, hidden = self.decoder(decoder_features, hidden)
 
         output = self.to_num_classes(output)
 
         return output
 
-    def init_hidden(self, bsz):
-        return (torch.zeros(self.num_layers, bsz, self.hidden_size),
-                torch.zeros(self.num_layers, bsz, self.hidden_size))
+    def init_hidden(self, bsz, device):
+        return (torch.zeros(self.num_layers, bsz, self.hidden_size).to(device),
+                torch.zeros(self.num_layers, bsz, self.hidden_size).to(device))
