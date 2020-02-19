@@ -40,10 +40,9 @@ class ReformerTimeSeriesModel(nn.Module):
         #
         # self.padder = Autopadder(self.reformer)
 
-        self.padder = nn.Transformer(d_model=hidden_size,
-                                     nhead=num_heads,
-                                     num_encoder_layers=num_layers,
-                                     )
+        encoder_layer = nn.TransformerEncoderLayer(d_model=hidden_size, nhead=num_heads)
+
+        self.padder = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
 
         self.to_hidden_size = nn.Linear(input_size, hidden_size)
         self.to_num_classes = nn.Linear(hidden_size, out_size)
@@ -53,7 +52,9 @@ class ReformerTimeSeriesModel(nn.Module):
         t_index = torch.arange(features.shape[1], device=features.device)
         pos_emb = self.pos_emb(t_index).type(features.type())
 
-        output = pos_emb + self.to_hidden_size(features)
+        ft_emb = nn.Sigmoid()(self.to_hidden_size(features))
+
+        output = pos_emb + ft_emb
 
         # TODO: reduce load by only attending the valid time steps with the past
         output = self.padder(output)
